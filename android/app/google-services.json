@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "335609389484",
+    "project_id": "careerally-4824e",
+    "storage_bucket": "careerally-4824e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:335609389484:android:b0955e873486bf34e25a09",
+        "android_client_info": {
+          "package_name": "com.example.career_ally"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFm_TdaHozuI-4MnP0SZgqv09xZ2WzbSs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
