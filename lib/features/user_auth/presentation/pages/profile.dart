@@ -1,88 +1,13 @@
-// import 'package:flutter/material.dart';
-//
-// class ProfileScreen extends StatelessWidget {
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text(
-//           'My Profile',
-//           style: TextStyle(
-//               fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-//         ),
-//         backgroundColor: Colors.deepPurple,
-//         // iconTheme: IconThemeData(color: Colors.white),
-//         automaticallyImplyLeading: false,
-//         centerTitle: true,
-//         elevation: 0,
-//       ),
-//       body: SingleChildScrollView(
-//         padding: const EdgeInsets.all(16.0),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Center(
-//               child: CircleAvatar(
-//                 radius: 60,
-//                 backgroundColor: Colors.deepPurple,
-//                 child: Icon(Icons.person, size: 60, color: Colors.white),
-//               ),
-//             ),
-//             SizedBox(height: 20),
-//             buildProfileDetail('Name', 'Ketan Bhirud'),
-//             buildProfileDetail('Email', 'ketanbhirud@example.com'),
-//             buildProfileDetail('Position', 'Software Engineer'),
-//             SizedBox(height: 20),
-//             ElevatedButton.icon(
-//               onPressed: () {},
-//               icon: Icon(Icons.edit, color: Colors.white,),
-//               label: Text('Edit Profile',style: TextStyle(color: Colors.white),),
-//               style: ElevatedButton.styleFrom(
-//                 backgroundColor: Colors.deepPurple,
-//                 padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-//                 textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-//               ),
-//             ),
-//             SizedBox(height: 20),
-//             Divider(),
-//             ListTile(
-//               leading: Icon(Icons.settings, color: Colors.deepPurple),
-//               title: Text('Settings'),
-//               onTap: () {},
-//             ),
-//             ListTile(
-//               leading: Icon(Icons.logout, color: Colors.deepPurple),
-//               title: Text('Logout'),
-//               onTap: () {},
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-//
-//   Widget buildProfileDetail(String title, String value) {
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(vertical: 8.0),
-//       child: Row(
-//         children: [
-//           Icon(Icons.info_outline, color: Colors.deepPurple),
-//           SizedBox(width: 10),
-//           Text('$title: ',
-//               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-//           Expanded(
-//             child: Text(value, style: TextStyle(fontSize: 16)),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
+// This is the code you provided, confirmed to have the onSaved implementation.
+// No further changes needed *here* for the data collection fix.
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/firestore_service.dart'; // Adjust import path
-import '../models/profile_model.dart'; // Adjust import path
+import '../services/firestore_service.dart';
+import '../models/profile_model.dart';
+import '../widgets/student_profile_form.dart'; // Ensure this uses onSaveField
+import '../widgets/alumni_profile_form.dart';   // Ensure this uses onSaveField
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -92,15 +17,22 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  // GlobalKey to manage the Form state and trigger onSaved callbacks
+  final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = true;
   bool _isEditing = false;
   String? _userRole;
-  Profile? _profile;
+  Profile? _profile; // Holds the currently loaded profile
   String? _errorMessage;
 
-  // Text Editing Controllers - Initialize later if needed
-  final Map<String, TextEditingController> _controllers = {};
+  // --- State for form data populated by onSaved ---
+  final Map<String, dynamic> _formData = {};
+
+  // --- Temporary state for complex list fields updated via direct callbacks ---
+  List<String> _tempSkills = [];
+  List<Map<String, String>> _tempProjects = [];
+  List<Map<String, String>> _tempExperience = [];
 
   @override
   void initState() {
@@ -108,191 +40,190 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
-  @override
-  void dispose() {
-    // Dispose all controllers
-    _controllers.forEach((key, controller) => controller.dispose());
-    super.dispose();
-  }
-
   Future<void> _loadUserData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+    if (!mounted) return;
+    setState(() { _isLoading = true; _errorMessage = null; });
     User? currentUser = _auth.currentUser;
     if (currentUser == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "User not logged in.";
-      });
-      // Optional: Navigate to login screen
+      if (!mounted) return;
+      setState(() { _isLoading = false; _errorMessage = "User not logged in."; });
       return;
     }
-
     try {
       final role = await _firestoreService.getUserRole(currentUser.uid);
       final profileData = await _firestoreService.getProfile(currentUser.uid);
-
+      if (!mounted) return;
       setState(() {
         _userRole = role;
-        _profile = profileData; // Will be null if no profile exists yet
+        _profile = profileData;
+        _initializeTemporaryEditState(); // Initialize temps for lists
         _isLoading = false;
       });
-
-      // If profile exists and we enter edit mode later, controllers will be initialized then
       if (profileData == null && role == 'student') {
-        // Handle new student onboarding - prompt to create profile
         print("New student detected - profile needs creation.");
-        // Maybe automatically switch to edit mode?
-        // _isEditing = true;
-      } else if (profileData == null && role == 'alumni') {
-        // Should ideally not happen if transition logic is correct, but handle it
-        print("Alumnus without profile data found.");
-        _errorMessage = "Alumni profile data missing.";
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _toggleEditMode(startEditing: true);
+        });
       }
-
     } catch (e) {
       print("Error loading user data: $e");
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "Failed to load profile data.";
-      });
+      if (!mounted) return;
+      setState(() { _isLoading = false; _errorMessage = "Failed to load profile data."; });
     }
   }
 
-  // Initialize controllers when entering edit mode
-  void _initializeControllers() {
-    _controllers.clear(); // Clear previous controllers
-
-    // --- Common Fields ---
-    _controllers['name'] = TextEditingController(text: _profile?.name ?? '');
-    _controllers['department'] = TextEditingController(text: _profile?.department ?? '');
-    _controllers['batchYear'] = TextEditingController(text: _profile?.batchYear?.toString() ?? '');
-    _controllers['graduationYear'] = TextEditingController(text: _profile?.graduationYear?.toString() ?? '');
-    _controllers['resumeUrl'] = TextEditingController(text: _profile?.resumeUrl ?? '');
-    // For complex fields like lists/maps, handle differently (e.g., specific widgets)
-    _controllers['skills'] = TextEditingController(text: _profile?.skills?.join(', ') ?? ''); // Simple comma separated for now
-    _controllers['phone'] = TextEditingController(text: _profile?.contactInfo?['phone'] ?? '');
-    _controllers['linkedin'] = TextEditingController(text: _profile?.contactInfo?['linkedin'] ?? '');
-    // Add controllers for other fields (academic, projects, experience) as needed
-
-
-    // --- Alumni Specific Fields ---
-    if (_userRole == 'alumni') {
-      _controllers['currentCompany'] = TextEditingController(text: _profile?.currentCompany ?? '');
-      _controllers['currentJobTitle'] = TextEditingController(text: _profile?.currentJobTitle ?? '');
-    }
+  // Initializes the temporary state for complex lists when entering edit mode
+  void _initializeTemporaryEditState() {
+    _tempSkills = List<String>.from(_profile?.skills ?? []);
+    _tempProjects = List<Map<String, String>>.from(_profile?.projects ?? []);
+    _tempExperience = List<Map<String, String>>.from(_profile?.experience ?? []);
+    // _formData map is cleared before each save, initialization not strictly needed here
   }
 
-  void _toggleEditMode() {
+  void _toggleEditMode({bool startEditing = false}) {
+    if (!mounted) return;
     setState(() {
-      _isEditing = !_isEditing;
+      _isEditing = startEditing ? true : !_isEditing;
       if (_isEditing) {
-        // Initialize controllers with current data when starting edit
-        _initializeControllers();
+        _initializeTemporaryEditState(); // Ensure temp lists are reset from profile
       } else {
-        // Clear controllers when exiting edit mode (optional)
-        // _controllers.forEach((key, controller) => controller.dispose());
-        // _controllers.clear();
+        _formData.clear(); // Clear collected form data when cancelling edit
       }
     });
+  }
+
+  // --- Callback Functions for complex lists from Form Widgets ---
+  void _updateSkills(List<String> newSkills) {
+    if (!mounted) return;
+    setState(() { _tempSkills = newSkills; });
+  }
+  void _updateProjects(List<Map<String, String>> newProjects) {
+    if (!mounted) return;
+    setState(() { _tempProjects = newProjects; });
+  }
+  void _updateExperience(List<Map<String, String>> newExperience) {
+    if (!mounted) return;
+    setState(() { _tempExperience = newExperience; });
+  }
+
+  // --- Callback for basic fields from Form Widgets' onSaved ---
+  void _updateFormData(String key, dynamic value) {
+    // This map is populated when _formKey.currentState!.save() is called
+    _formData[key] = value;
+    // No setState needed here as it's just collecting data before the final save setState
   }
 
   Future<void> _saveProfile() async {
-    print("Current User UID before save: ${_auth.currentUser?.uid}");
-    if (_auth.currentUser == null) return; // Should not happen if logged in
-
-    setState(() {
-      _isLoading = true; // Show loading indicator during save
-      _errorMessage = null;
-    });
-
-    // --- Construct Profile object from controllers ---
-    // Basic example, needs refinement for lists/maps/numbers
-    Map<String, dynamic> updatedData = {
-      'name': _controllers['name']?.text,
-      'department': _controllers['department']?.text,
-      'batchYear': int.tryParse(_controllers['batchYear']?.text ?? ''),
-      'graduationYear': int.tryParse(_controllers['graduationYear']?.text ?? ''),
-      'resumeUrl': _controllers['resumeUrl']?.text,
-      'skills': _controllers['skills']?.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
-      'contactInfo': {
-        'phone': _controllers['phone']?.text,
-        'linkedin': _controllers['linkedin']?.text,
-      },
-      // Add logic to parse other fields (academic, projects, experience)
-    };
-
-    if (_userRole == 'alumni') {
-      updatedData['currentCompany'] = _controllers['currentCompany']?.text;
-      updatedData['currentJobTitle'] = _controllers['currentJobTitle']?.text;
+    // 1. Validate the form using the GlobalKey
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fix the errors in the form.')),
+      );
+      return;
     }
 
-    // Create a temporary profile object to use the toJson method
-    // Note: We pass the UID but it won't be included in the JSON map itself
-    Profile updatedProfile = Profile.fromJson(_auth.currentUser!.uid, updatedData);
+    // 2. Clear previous form data and trigger onSaved for all FormFields
+    _formData.clear(); // Ensure we start fresh for this save
+    _formKey.currentState!.save(); // This populates _formData via _updateFormData callback
+
+    if (_auth.currentUser == null) return;
+    if (!mounted) return;
+    setState(() { _isLoading = true; _errorMessage = null; });
+
+    // 3. Construct the Profile object using _formData and temporary state
+    Profile updatedProfile = Profile(
+      uid: _auth.currentUser!.uid,
+
+      // --- Get data from the _formData map populated by onSaved ---
+      name: _formData['name'] as String?,
+      department: _formData['department'] as String?,
+      batchYear: _formData['batchYear'] as int?, // Parsed in child form's onSaved
+      graduationYear: _formData['graduationYear'] as int?, // Parsed in child form's onSaved
+      resumeUrl: _formData['resumeUrl'] as String?,
+      contactInfo: { // Reconstruct map
+        'phone': _formData['phone'] as String? ?? '',
+        'linkedin': _formData['linkedin'] as String? ?? '',
+      },
+      academicInfo: { // Reconstruct map
+        'cgpa': _formData['cgpa'] as double?, // Parsed in child form's onSaved
+        'tenth': _formData['tenth'] as double?, // Parsed in child form's onSaved
+        'twelfth': _formData['twelfth'] as double?, // Parsed in child form's onSaved
+      },
+      profilePictureUrl: _profile?.profilePictureUrl, // TODO: Needs image handling
+
+      // --- Use temporary state updated by direct callbacks ---
+      skills: _tempSkills,
+      projects: _tempProjects,
+      experience: _tempExperience,
+
+      // --- Alumni Specific Fields (get from _formData if Alumni form) ---
+      currentCompany: _userRole == 'alumni' ? (_formData['currentCompany'] as String?) : null,
+      currentJobTitle: _userRole == 'alumni' ? (_formData['currentJobTitle'] as String?) : null,
+
+      // --- Fields not typically edited ---
+      alumniSince: _profile?.alumniSince,
+      email: _profile?.email, // Keep original email associated with profile model if needed
+    );
+
+    // !!!!! CRITICAL DEBUG STEP !!!!!
+    print("--- Saving Profile Data ---");
+    print("User ID: ${updatedProfile.uid}");
+    print("Data collected via onSaved (_formData): $_formData"); // Log the map populated by onSaved
+    print("Data from _tempSkills: $_tempSkills");
+    print("Data from _tempProjects: $_tempProjects");
+    print("Data from _tempExperience: $_tempExperience");
+    print("Final Profile Object to Save (JSON): ${updatedProfile.toJson()}"); // Log the final object
+    print("---------------------------");
+    // !!!!! END OF DEBUG STEP !!!!!
 
 
     try {
       await _firestoreService.createOrUpdateProfile(
         _auth.currentUser!.uid,
-        updatedProfile, // Pass the updated profile data
+        updatedProfile,
       );
-
-      // Reload data after saving
-      await _loadUserData(); // Fetch fresh data
-
+      if (!mounted) return;
+      // Update the local state *after* successful save
       setState(() {
-        _isEditing = false; // Exit edit mode on success
+        _profile = updatedProfile; // Reflect changes immediately in view mode
+        _isEditing = false;
         _isLoading = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Profile updated successfully!')),
-        );
       });
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile updated successfully!')),
+      );
     } catch (e) {
       print("Error saving profile: $e");
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "Failed to save profile.";
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving profile: ${e.toString()}')),
-        );
-      });
+      if (!mounted) return;
+      setState(() { _isLoading = false; _errorMessage = "Failed to save profile."; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving profile: ${e.toString()}')),
+      );
+    } finally {
+      // Ensure loading stops if still mounted and loading is true
+      if (mounted && _isLoading) {
+        setState(() { _isLoading = false; });
+      }
     }
   }
 
+
+  // --- Build Methods ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _isEditing ? 'Edit Profile' : 'My Profile',
-          style: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+        title: Text(_isEditing ? 'Edit Profile' : 'My Profile', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.deepPurple,
         automaticallyImplyLeading: false,
         centerTitle: true,
         elevation: 0,
         actions: [
-          // Show Save button only in edit mode
-          if (_isEditing)
-            IconButton(
-              icon: Icon(Icons.save, color: Colors.white),
-              onPressed: _saveProfile,
-              tooltip: 'Save',
-            ),
-          // Toggle Edit/View Button (excluding loading state)
+          if (_isEditing && !_isLoading)
+            IconButton(icon: Icon(Icons.save, color: Colors.white), onPressed: _saveProfile, tooltip: 'Save'),
           if (!_isLoading)
-            IconButton(
-              icon: Icon(_isEditing ? Icons.close : Icons.edit, color: Colors.white),
-              onPressed: _toggleEditMode,
-              tooltip: _isEditing ? 'Cancel' : 'Edit Profile',
-            ),
+            IconButton(icon: Icon(_isEditing ? Icons.close : Icons.edit, color: Colors.white), onPressed: () => _toggleEditMode(), tooltip: _isEditing ? 'Cancel' : 'Edit Profile'),
         ],
       ),
       body: _buildBody(),
@@ -300,212 +231,250 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
-    }
+    if (_isLoading) return Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) return Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Text('Error: $_errorMessage', style: TextStyle(color: Colors.red))));
+    if (_auth.currentUser == null) return Center(child: Text('Please log in.'));
+    if (_userRole == null) return Center(child: Text('Could not determine user role.'));
 
-    if (_errorMessage != null) {
-      return Center(child: Text('Error: $_errorMessage'));
-    }
-
-    if (_auth.currentUser == null) {
-      return Center(child: Text('Please log in.')); // Should be handled by redirect earlier
-    }
-
-    // Handle case where user is logged in but role/profile somehow failed to load
-    // (though _errorMessage should catch most Firestore errors)
-    if (_userRole == null) {
-      return Center(child: Text('Could not determine user role.'));
-    }
-
-
-    // --- New Student Onboarding ---
-    if (_profile == null && _userRole == 'student' && !_isEditing) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("Welcome!", style: Theme.of(context).textTheme.headlineMedium),
-              SizedBox(height: 15),
-              Text("Please create your profile to get started.", textAlign: TextAlign.center),
-              SizedBox(height: 20),
-              ElevatedButton.icon(
-                icon: Icon(Icons.add),
-                label: Text("Create Profile"),
-                onPressed: _toggleEditMode, // Switches to edit mode
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-              )
-            ],
-          ),
-        ),
-      );
-    }
-
-    // --- Profile View / Edit ---
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center( // Keep the avatar
-            child: CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.deepPurple.shade100,
-              // TODO: Load actual profile picture from _profile?.profilePictureUrl
-              backgroundImage: _profile?.profilePictureUrl != null
-                  ? NetworkImage(_profile!.profilePictureUrl!)
-                  : null, // Handle null case
-              child: _profile?.profilePictureUrl == null
-                  ? Icon(Icons.person, size: 60, color: Colors.deepPurple.shade700)
-                  : null, // Show icon if no image
-            ),
-          ),
-          SizedBox(height: 20),
-
-          // Conditionally display View or Edit Form
-          if (_isEditing)
-            _buildEditForm()
-          else
-            _buildViewDetails(),
-
-
-          // Keep Settings/Logout outside the edit form
-          if (!_isEditing) ...[
+    return RefreshIndicator(
+      onRefresh: _loadUserData,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: _buildAvatar()),
             SizedBox(height: 20),
-            Divider(),
-            ListTile(
-              leading: Icon(Icons.settings, color: Colors.deepPurple),
-              title: Text('Settings'),
-              onTap: () {
-                // TODO: Implement Settings Navigation
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.logout, color: Colors.deepPurple),
-              title: Text('Logout'),
-              onTap: () async {
-                await FirebaseAuth.instance.signOut();
-                // Optional: Navigate to login screen after logout
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false); // Example navigation
-              },
-            ),
-          ]
-        ],
+            _isEditing
+                ? _buildEditFormContainer() // Contains the Form widget now
+                : _buildViewDetails(),
+            if (!_isEditing) _buildSettingsLogout(),
+          ],
+        ),
       ),
     );
   }
 
-  // --- VIEW MODE WIDGET ---
-  Widget _buildViewDetails() {
-    if (_profile == null) {
-      // This case is mostly handled by the onboarding check, but as a fallback
-      return Center(child: Text("Profile not available."));
+  Widget _buildAvatar() {
+    return Center(
+        child: Stack(
+          children: [
+            CircleAvatar( /* ... Avatar display logic ... */
+              radius: 60,
+              backgroundColor: Colors.deepPurple.shade100,
+              backgroundImage: _profile?.profilePictureUrl != null
+                  ? NetworkImage(_profile!.profilePictureUrl!)
+                  : null,
+              child: _profile?.profilePictureUrl == null
+                  ? Icon(Icons.person, size: 60, color: Colors.deepPurple.shade700)
+                  : null,
+            ),
+            if (_isEditing)
+              Positioned( /* ... Camera Icon Logic ... */
+                bottom: 0,
+                right: 0,
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.deepPurple,
+                  child: IconButton(
+                    icon: Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                    onPressed: () {
+                      // TODO: Implement Image Picking Logic
+                      print("Pick Image pressed");
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Image picking not implemented yet.')));
+                    },
+                  ),
+                ),
+              ),
+          ],
+        )
+    );
+  }
+
+
+  Widget _buildEditFormContainer() {
+    Widget formWidget;
+    // Clear previous form data when rebuilding the form container
+    _formData.clear();
+
+    if (_userRole == 'student') {
+      formWidget = StudentProfileForm(
+        initialProfile: _profile,
+        onSkillsChanged: _updateSkills,
+        onProjectsChanged: _updateProjects,
+        onExperienceChanged: _updateExperience,
+        initialSkills: _tempSkills,
+        initialProjects: _tempProjects,
+        initialExperience: _tempExperience,
+        onSaveField: _updateFormData, // Pass the callback to populate _formData
+      );
+    } else if (_userRole == 'alumni') {
+      formWidget = AlumniProfileForm(
+        initialProfile: _profile!,
+        onSkillsChanged: _updateSkills,
+        onProjectsChanged: _updateProjects,
+        onExperienceChanged: _updateExperience,
+        initialSkills: _tempSkills,
+        initialProjects: _tempProjects,
+        initialExperience: _tempExperience,
+        onSaveField: _updateFormData, // Pass the callback to populate _formData
+      );
+    } else {
+      formWidget = Center(child: Text("Editing not available for role: $_userRole"));
     }
-    // Display data from the _profile object
+
+    // Wrap the specific form widget with the Form and its key
+    return Form(
+      key: _formKey,
+      child: formWidget,
+    );
+  }
+
+  // --- _buildViewDetails and its helpers ---
+  Widget _buildViewDetails() {
+    if (_profile == null && _userRole == 'student') {
+      return _buildOnboardingPrompt();
+    }
+    if (_profile == null) {
+      return Center(child: Text("Profile data not available."));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        buildProfileDetailView('Name', _profile?.name ?? 'N/A'),
-        buildProfileDetailView('Email', _auth.currentUser?.email ?? 'N/A'), // Get email from auth
-        buildProfileDetailView('Role', _userRole ?? 'N/A'),
-        buildProfileDetailView('Department', _profile?.department ?? 'N/A'),
-        buildProfileDetailView('Graduation Year', _profile?.graduationYear?.toString() ?? 'N/A'),
-        buildProfileDetailView('Skills', _profile?.skills?.join(', ') ?? 'N/A'),
-        buildProfileDetailView('Resume', _profile?.resumeUrl ?? 'N/A'), // TODO: Make this a tappable link
-        buildProfileDetailView('Phone', _profile?.contactInfo?['phone'] ?? 'N/A'),
-        buildProfileDetailView('LinkedIn', _profile?.contactInfo?['linkedin'] ?? 'N/A'), // TODO: Tappable link
-
-        // --- Display Alumni Specific Fields ---
-        if (_userRole == 'alumni') ...[
-          Divider(height: 30),
-          Text("Alumni Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
-          buildProfileDetailView('Current Company', _profile?.currentCompany ?? 'N/A'),
-          buildProfileDetailView('Current Job Title', _profile?.currentJobTitle ?? 'N/A'),
-          buildProfileDetailView('Alumni Since', _profile?.alumniSince?.toDate().toString().substring(0,10) ?? 'N/A'), // Format date
-        ]
-        // TODO: Add sections for Academic Info, Projects, Experience using data from _profile
+        _buildViewSection("Basic Information", [
+          _buildDetailItem('Name', _profile?.name),
+          _buildDetailItem('Email', _auth.currentUser?.email),
+          _buildDetailItem('Role', _userRole),
+          _buildDetailItem('Department', _profile?.department),
+          if (_userRole != 'alumni') _buildDetailItem('Expected Graduation', _profile?.graduationYear?.toString()),
+        ]),
+        _buildViewSection("Skills", [
+          _profile?.skills.isEmpty ?? true
+              ? Text("No skills added.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey))
+              : Wrap(
+            spacing: 8.0, runSpacing: 4.0,
+            children: _profile!.skills.map((skill) => Chip(label: Text(skill))).toList(),
+          )
+        ]),
+        _buildViewSection("Contact & Resume", [
+          _buildDetailItem('Resume URL', _profile?.resumeUrl), // TODO: Tappable
+          _buildDetailItem('Phone', _profile?.contactInfo['phone']),
+          _buildDetailItem('LinkedIn', _profile?.contactInfo['linkedin']), // TODO: Tappable
+        ]),
+        _buildViewSection("Academic Info", [
+          _buildDetailItem('CGPA', _profile?.academicInfo['cgpa']?.toString()),
+          _buildDetailItem('10th %', _profile?.academicInfo['tenth']?.toString()),
+          _buildDetailItem('12th %', _profile?.academicInfo['twelfth']?.toString()),
+        ]),
+        _buildViewSection("Projects", _buildProjectExperienceList(_profile!.projects)),
+        _buildViewSection("Experience", _buildProjectExperienceList(_profile!.experience)),
+        if (_userRole == 'alumni')
+          _buildViewSection("Alumni Information", [
+            _buildDetailItem('Current Company', _profile?.currentCompany),
+            _buildDetailItem('Current Job Title', _profile?.currentJobTitle),
+            _buildDetailItem('Alumni Since', _profile?.alumniSince?.toDate().toString().substring(0, 10)),
+          ]),
       ],
     );
   }
 
-  // Helper for View Mode display
-  Widget buildProfileDetailView(String title, String value) {
+  Widget _buildViewSection(String title, List<Widget> children) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$title: ',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          SizedBox(width: 5),
-          Expanded(
-            child: Text(value, style: TextStyle(fontSize: 16)),
-          ),
+          Text( title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple),),
+          SizedBox(height: 8),
+          if (children.isEmpty || children.every((w) => w is SizedBox && w.height == 0))
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: Text("No information added.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+            )
+          else
+            ...children,
+          Divider(height: 20),
         ],
       ),
     );
   }
 
-
-  // --- EDIT MODE WIDGET ---
-  Widget _buildEditForm() {
-    // Use the _controllers map to link TextFields
-    // This needs significant expansion for a good UX
-    return Column(
-      children: [
-        _buildTextField('name', 'Full Name'),
-        _buildTextField('department', 'Department'),
-        _buildTextField('batchYear', 'Batch Year (e.g., 2021)', keyboardType: TextInputType.number),
-        _buildTextField('graduationYear', 'Expected Graduation Year (e.g., 2025)', keyboardType: TextInputType.number, enabled: _userRole == 'student'), // Disable for alumni
-        _buildTextField('skills', 'Skills (comma-separated)'),
-        _buildTextField('resumeUrl', 'Resume URL'),
-        _buildTextField('phone', 'Phone Number', keyboardType: TextInputType.phone),
-        _buildTextField('linkedin', 'LinkedIn Profile URL'),
-
-        // TODO: Add form fields for Academic Info, Projects, Experience (might need dedicated widgets)
-
-        if (_userRole == 'alumni') ...[
-          Divider(height: 30),
-          Text("Alumni Information", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
-          _buildTextField('currentCompany', 'Current Company'),
-          _buildTextField('currentJobTitle', 'Current Job Title'),
-        ]
-      ],
-    );
-  }
-
-  // Helper for Edit Mode TextFields
-  Widget _buildTextField(String key, String label, {TextInputType keyboardType = TextInputType.text, bool enabled = true}) {
-    // Ensure controller exists for the key
-    if (_controllers[key] == null) {
-      _controllers[key] = TextEditingController();
-      print("Warning: Controller for '$key' was null, initialized."); // Should be init'd in _initializeControllers
-    }
-
+  Widget _buildDetailItem(String label, String? value) {
+    if (value == null || value.isEmpty) return SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: _controllers[key],
-        keyboardType: keyboardType,
-        enabled: enabled, // Control if field is editable
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          filled: !enabled, // Indicate disabled fields
-          fillColor: !enabled ? Colors.grey[200] : null,
-        ),
-        validator: (value) { // Add basic validation if needed
-          if (value == null || value.isEmpty) {
-            // Make specific fields required if necessary
-            // return 'Please enter $label';
-          }
-          return null;
-        },
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          SizedBox(width: 5),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 16))),
+        ],
       ),
     );
   }
 
+  List<Widget> _buildProjectExperienceList(List<Map<String, String>> items) {
+    if (items.isEmpty) return [SizedBox.shrink()];
+    return items.map((item) {
+      String title = item['title'] ?? item['company'] ?? 'N/A';
+      String description = item['description'] ?? item['role'] ?? 'No description';
+      return ListTile(
+        dense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+      );
+    }).toList();
+  }
+
+  Widget _buildOnboardingPrompt() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0), // Added padding here
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Welcome!", style: Theme.of(context).textTheme.headlineMedium),
+            SizedBox(height: 15),
+            Text("Create your profile to showcase your skills!", textAlign: TextAlign.center),
+            SizedBox(height: 20),
+            ElevatedButton.icon(
+              icon: Icon(Icons.add),
+              label: Text("Create Profile"),
+              onPressed: () => _toggleEditMode(startEditing: true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsLogout() {
+    return Column(
+        children: [
+          SizedBox(height: 20),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.settings, color: Colors.deepPurple),
+            title: Text('Settings'),
+            onTap: () { /* TODO: Implement Settings */ },
+          ),
+          ListTile(
+            leading: Icon(Icons.logout, color: Colors.deepPurple),
+            title: Text('Logout'),
+            onTap: () async {
+              // Optional: Add confirmation dialog before logout
+              await _auth.signOut();
+              // Ensure context is still valid if async gap happens
+              if (mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              }
+            },
+          ),
+        ]
+    );
+  }
 
 } // End of _ProfileScreenState
