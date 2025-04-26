@@ -196,6 +196,7 @@ import 'home_redirect/tpo_updates.dart';
 import 'home_redirect/alumni_guidance.dart';
 import 'home_redirect/upcoming_drives.dart';
 import 'home_redirect/placement_resources.dart';
+import 'home_redirect/manage_updates.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -392,7 +393,7 @@ class TpoHomeScreen extends StatelessWidget {
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
                 children: [
-                  _buildCard(Icons.announcement, 'Manage Updates', context, TPOUpdatesScreen()),
+                  _buildCard(Icons.announcement, 'Manage Updates', context, ManageUpdatesScreen()),
                   _buildCard(Icons.people, 'Manage Alumni', context, AlumniGuidanceScreen()),
                   _buildCard(Icons.library_books, 'Manage Resources', context, PlacementResourcesScreen()),
                   _buildCard(Icons.event, 'Manage Drives', context, UpcomingDrivesScreen()),
