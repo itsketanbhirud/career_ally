@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/profile_model.dart'; // Adjust import path if needed
 import '../models/tpo_update_model.dart';
 import '../models/tpo_update_model.dart';
+import '../models/placement_resource_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -149,4 +150,74 @@ class FirestoreService {
 // --- TPO Profile (Placeholder - Add later) ---
 // Future<TpoProfile?> getTpoProfile(String userId) async { ... }
 // Future<void> createOrUpdateTpoProfile(String userId, TpoProfile tpoProfileData) async { ... }
+// --- NEW METHODS for Placement Resources ---
+
+  // Get Stream of Placement Resources
+  Stream<List<PlacementResource>> getPlacementResourcesStream() {
+    return _db
+        .collection('placement_resources')
+        .orderBy('postedAt', descending: true) // Show newest first
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => PlacementResource.fromFirestore(doc))
+        .toList());
+  }
+
+  // Add a new Placement Resource
+  Future<void> addPlacementResource({
+    required String title,
+    required String description,
+    required String url,
+    required String postedByUid,
+    required String postedByName,
+    required String postedByRole,
+  }) async {
+    // Security rules should primarily handle authorization
+    try {
+      await _db.collection('placement_resources').add({
+        'title': title,
+        'description': description,
+        'url': url,
+        'postedAt': FieldValue.serverTimestamp(),
+        'postedByUid': postedByUid,
+        'postedByName': postedByName,
+        'postedByRole': postedByRole,
+      });
+      print("Placement Resource added successfully.");
+    } catch (e) {
+      print("Error adding Placement Resource: $e");
+      throw FirebaseException(plugin: 'FirestoreService', message: e.toString());
+    }
+  }
+
+  // Delete a Placement Resource
+  Future<void> deletePlacementResource({required String resourceId}) async {
+    // Authorization (who can delete) should be primarily enforced by Security Rules
+    try {
+      await _db.collection('placement_resources').doc(resourceId).delete();
+      print("Placement Resource $resourceId deleted successfully.");
+    } catch (e) {
+      print("Error deleting Placement Resource $resourceId: $e");
+      throw FirebaseException(plugin: 'FirestoreService', message: e.toString());
+    }
+  }
+
+  // --- Helper to get User name (reuse or adapt from TPO name fetch) ---
+  // It's often better to fetch the name once when the screen loads
+  Future<String?> getUserDisplayName(String userId) async {
+    try {
+      // Check profile first? Or just users collection?
+      DocumentSnapshot userDoc = await _db.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        // Assuming 'username' field holds the display name
+        return userDoc.get('username') as String?;
+      }
+      print("User name not found for UID: $userId");
+      return "Unknown User";
+    } catch (e) {
+      print("Error getting user name: $e");
+      return "Error Fetching Name";
+    }
+  }
+
 }
