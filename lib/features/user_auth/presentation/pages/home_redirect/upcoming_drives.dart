@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class UpcomingDrivesScreen extends StatelessWidget {
+  const UpcomingDrivesScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

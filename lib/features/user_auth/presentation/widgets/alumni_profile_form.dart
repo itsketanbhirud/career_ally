@@ -18,7 +18,7 @@ class AlumniProfileForm extends StatefulWidget {
   final Function(String key, dynamic value) onSaveField; // Callback to update parent's map
 
   const AlumniProfileForm({
-    Key? key,
+    super.key,
     required this.initialProfile,
     required this.onSkillsChanged,
     required this.onProjectsChanged,
@@ -27,7 +27,7 @@ class AlumniProfileForm extends StatefulWidget {
     required this.initialProjects,
     required this.initialExperience,
     required this.onSaveField, // Receive the callback
-  }) : super(key: key);
+  });
 
   @override
   _AlumniProfileFormState createState() => _AlumniProfileFormState();

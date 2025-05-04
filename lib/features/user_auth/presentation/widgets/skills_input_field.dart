@@ -5,10 +5,10 @@ class SkillsInputField extends StatefulWidget {
   final Function(List<String>) onChanged;
 
   const SkillsInputField({
-    Key? key,
+    super.key,
     required this.initialSkills,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   _SkillsInputFieldState createState() => _SkillsInputFieldState();

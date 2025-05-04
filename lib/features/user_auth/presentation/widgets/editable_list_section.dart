@@ -13,7 +13,7 @@ class EditableListSection<T> extends StatelessWidget {
   final String emptyListText;
 
   const EditableListSection({
-    Key? key,
+    super.key,
     required this.items,
     required this.titleKey,
     this.subtitleKey,
@@ -22,7 +22,7 @@ class EditableListSection<T> extends StatelessWidget {
     required this.onDelete,
     this.addItemLabel = 'Add Item',
     this.emptyListText = 'No items added yet.',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

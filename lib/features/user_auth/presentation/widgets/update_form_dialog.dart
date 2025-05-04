@@ -6,7 +6,7 @@ class UpdateFormDialog extends StatefulWidget {
   // Pass existing update data for editing, null for adding
   final TpoUpdate? update;
 
-  const UpdateFormDialog({Key? key, this.update}) : super(key: key);
+  const UpdateFormDialog({super.key, this.update});
 
   @override
   _UpdateFormDialogState createState() => _UpdateFormDialogState();
@@ -82,9 +82,9 @@ class _UpdateFormDialogState extends State<UpdateFormDialog> {
           onPressed: () => Navigator.of(context).pop(), // Close without returning data
         ),
         ElevatedButton(
-          child: Text(widget.update == null ? 'Add Update' : 'Save Changes' , style: TextStyle(color: Colors.white),),
           style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, ),
           onPressed: _submit,
+          child: Text(widget.update == null ? 'Add Update' : 'Save Changes' , style: TextStyle(color: Colors.white),),
         ),
       ],
     );

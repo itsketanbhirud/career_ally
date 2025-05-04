@@ -33,7 +33,7 @@ import 'dart:async';
 class SplashScreen extends StatefulWidget {
   final Widget? child;
 
-  const SplashScreen({Key? key, this.child}) : super(key: key);
+  const SplashScreen({super.key, this.child});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();

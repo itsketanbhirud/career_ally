@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 class ResourceFormDialog extends StatefulWidget {
   // Add initial data if editing is needed later
-  const ResourceFormDialog({Key? key}) : super(key: key);
+  const ResourceFormDialog({super.key});
 
   @override
   _ResourceFormDialogState createState() => _ResourceFormDialogState();
@@ -95,9 +95,9 @@ class _ResourceFormDialogState extends State<ResourceFormDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         ElevatedButton(
-          child: Text('Add Resource'),
           style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
           onPressed: _submit,
+          child: Text('Add Resource'),
         ),
       ],
     );

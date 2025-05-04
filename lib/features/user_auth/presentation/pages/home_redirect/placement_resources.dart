@@ -1,6 +1,5 @@
 // lib/screens/placement_resources.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart'; // Ensure this is imported
@@ -10,6 +9,8 @@ import '../../models/placement_resource_model.dart';
 import '../../widgets/resource_form_dialog.dart';
 
 class PlacementResourcesScreen extends StatefulWidget {
+  const PlacementResourcesScreen({super.key});
+
   @override
   _PlacementResourcesScreenState createState() => _PlacementResourcesScreenState();
 }
@@ -224,10 +225,10 @@ class _PlacementResourcesScreenState extends State<PlacementResourcesScreen> {
       floatingActionButton: _currentUser != null
           ? FloatingActionButton(
         onPressed: _showAddResourceDialog,
-        child: Icon(Icons.add, color: Colors.white),
         tooltip: 'Add Resource',
         foregroundColor: Colors.white,
         backgroundColor: Colors.deepPurple,
+        child: Icon(Icons.add, color: Colors.white),
       )
           : null,
     );
@@ -268,13 +269,13 @@ class _PlacementResourcesScreenState extends State<PlacementResourcesScreen> {
                 ElevatedButton(
                   // Pass context to _launchURL for potential Snackbars
                   onPressed: () => _launchURL(context, resource.url),
-                  // onPressed: () => _launchURL(context, resource.url),
-                  child: Text('Open Link', style: TextStyle(fontSize: 13, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact,
                   ),
+                  // onPressed: () => _launchURL(context, resource.url),
+                  child: Text('Open Link', style: TextStyle(fontSize: 13, color: Colors.white)),
                 ),
                 if (canDelete)
                   IconButton(
@@ -298,7 +299,7 @@ class _PlacementResourcesScreenState extends State<PlacementResourcesScreen> {
 class ResourceDetailScreen extends StatelessWidget {
   final PlacementResource resource;
 
-  ResourceDetailScreen({required this.resource});
+  const ResourceDetailScreen({super.key, required this.resource});
 
   // Replicated robust launch function here (consider moving to a shared utility file)
   Future<void> _launchURL(BuildContext context, String url) async {

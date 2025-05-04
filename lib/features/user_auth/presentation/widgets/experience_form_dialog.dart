@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class ExperienceFormDialog extends StatefulWidget {
   final Map<String, String>? experience; // Pass existing data for editing
 
-  const ExperienceFormDialog({Key? key, this.experience}) : super(key: key);
+  const ExperienceFormDialog({super.key, this.experience});
 
   @override
   _ExperienceFormDialogState createState() => _ExperienceFormDialogState();
@@ -89,8 +89,8 @@ class _ExperienceFormDialogState extends State<ExperienceFormDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         ElevatedButton(
-          child: Text(widget.experience == null ? 'Add' : 'Save'),
           onPressed: _submit,
+          child: Text(widget.experience == null ? 'Add' : 'Save'),
         ),
       ],
     );

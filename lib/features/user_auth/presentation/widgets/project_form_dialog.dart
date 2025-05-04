@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class ProjectFormDialog extends StatefulWidget {
   final Map<String, String>? project; // Pass existing project data for editing
 
-  const ProjectFormDialog({Key? key, this.project}) : super(key: key);
+  const ProjectFormDialog({super.key, this.project});
 
   @override
   _ProjectFormDialogState createState() => _ProjectFormDialogState();
@@ -89,8 +89,8 @@ class _ProjectFormDialogState extends State<ProjectFormDialog> {
           onPressed: () => Navigator.of(context).pop(), // Close without returning data
         ),
         ElevatedButton(
-          child: Text(widget.project == null ? 'Add' : 'Save'),
           onPressed: _submit,
+          child: Text(widget.project == null ? 'Add' : 'Save'),
         ),
       ],
     );

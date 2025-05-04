@@ -1,6 +1,5 @@
 // lib/screens/home_redirect/manage_updates.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // To get current TPO user
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
@@ -8,6 +7,8 @@ import '../../models/tpo_update_model.dart';
 import '../../widgets/update_form_dialog.dart'; // Import the dialog
 
 class ManageUpdatesScreen extends StatefulWidget {
+  const ManageUpdatesScreen({super.key});
+
   @override
   _ManageUpdatesScreenState createState() => _ManageUpdatesScreenState();
 }
@@ -60,7 +61,7 @@ class _ManageUpdatesScreenState extends State<ManageUpdatesScreen> {
           await _firestoreService.addTpoUpdate(
             title: result['title']!,
             description: result['description']!,
-            tpoUid: currentUser!.uid,
+            tpoUid: currentUser.uid,
             tpoName: _currentTpoName ?? "TPO", // Fallback name
           );
           ScaffoldMessenger.of(context).showSnackBar(
@@ -177,11 +178,11 @@ class _ManageUpdatesScreenState extends State<ManageUpdatesScreen> {
       ),
       // Floating Action Button to add new updates
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showUpdateDialog(), // Call dialog without existing update
-        child: Icon(Icons.add),
+        onPressed: () => _showUpdateDialog(),
         tooltip: 'Add New Update',
 foregroundColor: Colors.white,
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Colors.deepPurple, // Call dialog without existing update
+        child: Icon(Icons.add),
 
       ),
     );

@@ -199,6 +199,8 @@ import 'home_redirect/placement_resources.dart';
 import 'home_redirect/manage_updates.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
@@ -293,13 +295,13 @@ class _HomePageState extends State<HomePage> {
           ? Center(child: Text("Error: Could not load user role."))
           : PageView(
         controller: _pageController,
-        children: pages,
         onPageChanged: _onPageChanged,
         physics: _currentIndex == 0
             ? RestrictedScrollPhysics(allowForward: true, allowBackward: false)
             : _currentIndex == pages.length - 1
             ? RestrictedScrollPhysics(allowForward: false, allowBackward: true)
             : BouncingScrollPhysics(),
+        children: pages,
       ),
       bottomNavigationBar: Theme(
         data: Theme.of(context).copyWith(
@@ -334,8 +336,8 @@ class RestrictedScrollPhysics extends ScrollPhysics {
   const RestrictedScrollPhysics({
     required this.allowForward,
     required this.allowBackward,
-    ScrollPhysics? parent,
-  }) : super(parent: parent);
+    super.parent,
+  });
 
   @override
   RestrictedScrollPhysics applyTo(ScrollPhysics? ancestor) {
@@ -362,6 +364,8 @@ class RestrictedScrollPhysics extends ScrollPhysics {
 
 //TPO Home Screen
 class TpoHomeScreen extends StatelessWidget {
+  const TpoHomeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -440,6 +444,8 @@ class TpoHomeScreen extends StatelessWidget {
 
 //Student Home Screen
 class StudentHomeScreen extends StatelessWidget {
+  const StudentHomeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
