@@ -5,6 +5,7 @@ import '../models/tpo_update_model.dart';
 import '../models/placement_resource_model.dart';
 import '../models/guidance_post_model.dart'; // Import new models
 import '../models/guidance_reply_model.dart';
+import '../models/upcoming_drive_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -346,6 +347,94 @@ class FirestoreService {
       throw FirebaseException(plugin: 'FirestoreService', message: e.toString());
     }
   }
+  // --- NEW METHODS for Upcoming Drives ---
+
+  // Get Stream of Upcoming Drives (consider filtering past dates)
+  Stream<List<UpcomingDrive>> getUpcomingDrivesStream() {
+    // Get current timestamp to filter out past drives
+    Timestamp now = Timestamp.now();
+
+    return _db
+        .collection('upcoming_drives')
+        .where('driveDate', isGreaterThanOrEqualTo: now) // Only show future or current drives
+        .orderBy('driveDate', descending: false) // Show nearest date first
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => UpcomingDrive.fromFirestore(doc))
+        .toList());
+  }
+  // Add a new Upcoming Drive (TPO only)
+  Future<void> addUpcomingDrive({
+    required String companyName,
+    required String jobTitle,
+    required String description,
+    required Timestamp driveDate, // Use Timestamp for date/time
+    String? applyLink,
+    List<String>? requiredTechnologies,
+    required String postedByUid,
+    required String postedByName,
+  }) async {
+    // Authorization handled by Security Rules
+    try {
+      await _db.collection('upcoming_drives').add({
+        'companyName': companyName,
+        'jobTitle': jobTitle,
+        'description': description,
+        'driveDate': driveDate,
+        'applyLink': applyLink, // Can be null
+        'requiredTechnologies': requiredTechnologies, // Can be null or empty list
+        'postedAt': FieldValue.serverTimestamp(), // When TPO posted this
+        'postedByUid': postedByUid,
+        'postedByName': postedByName,
+      });
+      print("Upcoming Drive added successfully.");
+    } catch (e) {
+      print("Error adding Upcoming Drive: $e");
+      throw FirebaseException(plugin: 'FirestoreService', message: e.toString());
+    }
+  }
+
+  // Update an Upcoming Drive (TPO only)
+  Future<void> updateUpcomingDrive({
+    required String driveId,
+    required String companyName,
+    required String jobTitle,
+    required String description,
+    required Timestamp driveDate,
+    String? applyLink,
+    List<String>? requiredTechnologies,
+  }) async {
+    // Authorization handled by Security Rules
+    try {
+      await _db.collection('upcoming_drives').doc(driveId).update({
+        'companyName': companyName,
+        'jobTitle': jobTitle,
+        'description': description,
+        'driveDate': driveDate,
+        'applyLink': applyLink,
+        'requiredTechnologies': requiredTechnologies,
+        // Optionally update a 'lastEditedAt' field
+      });
+      print("Upcoming Drive $driveId updated successfully.");
+    } catch (e) {
+      print("Error updating Upcoming Drive $driveId: $e");
+      throw FirebaseException(plugin: 'FirestoreService', message: e.toString());
+    }
+  }
+
+
+  // Delete an Upcoming Drive (TPO only)
+  Future<void> deleteUpcomingDrive({required String driveId}) async {
+    // Authorization handled by Security Rules
+    try {
+      await _db.collection('upcoming_drives').doc(driveId).delete();
+      print("Upcoming Drive $driveId deleted successfully.");
+    } catch (e) {
+      print("Error deleting Upcoming Drive $driveId: $e");
+      throw FirebaseException(plugin: 'FirestoreService', message: e.toString());
+    }
+  }
+
 
 
 }
